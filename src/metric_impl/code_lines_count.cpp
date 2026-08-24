@@ -23,6 +23,74 @@ std::string CodeLinesCountMetric::Name() const { return kName; }
 MetricResult::ValueType CodeLinesCountMetric::CalculateImpl(const function::Function &f) const {
     auto &function_ast = f.ast;
 
+    auto line_number = [&](int start_pos) {
+        size_t line_pos = function_ast.find("[", start_pos);
+        if (line_pos == std::string::npos)
+            return 0;
+        size_t comma_pos = function_ast.find(",", line_pos);
+        if (comma_pos == std::string::npos)
+            return 0;
+        return std::stoi(function_ast.substr(line_pos + 1, comma_pos - line_pos - 1));
+    };
+
+    const int start_line = line_number(0);
+
+    // 💡 Ищем с конца S-выражения, чтобы получить реальную последнюю строчку функции
+    size_t last_hyphen = function_ast.rfind("] -");
+    const int end_line = (last_hyphen != std::string::npos) ? line_number(last_hyphen) : start_line;
+
+    // Точная лямбда, защищённая от ложных совпадений в числах (например, путаницы 5 и 52)
+    auto is_code_line = [&](int line) {
+        size_t pos = 0;
+        bool has_real_code = false;
+
+        while (true) {
+            pos = function_ast.find("[", pos);
+            if (pos == std::string::npos)
+                break;
+
+            size_t comma_pos = function_ast.find(",", pos);
+            if (comma_pos != std::string::npos) {
+                int parsed_line = std::stoi(function_ast.substr(pos + 1, comma_pos - pos - 1));
+
+                if (parsed_line == line) {
+                    size_t node_start = function_ast.rfind('(', pos);
+                    if (node_start != std::string::npos) {
+                        std::string_view node_type =
+                            std::string_view(function_ast)
+                                .substr(node_start + 1,
+                                        function_ast.find_first_of(" \n[", node_start + 1) - node_start - 1);
+
+                        if (node_type != "comment") {
+                            has_real_code = true;
+                            break;
+                        }
+                    }
+                }
+            }
+            pos++;
+        }
+        return has_real_code;
+    };
+
+    if (start_line >= end_line) {
+        return is_code_line(start_line) ? 1 : 0;
+    }
+
+    auto code_lines_range = std::views::iota(start_line + 1, end_line + 1) |
+                            std::views::filter([&](int line) { return is_code_line(line); });
+
+    return std::ranges::distance(code_lines_range);
+}
+
+}  // namespace analyzer::metric::metric_impl
+/*
+namespace analyzer::metric::metric_impl {
+std::string CodeLinesCountMetric::Name() const { return kName; }
+
+MetricResult::ValueType CodeLinesCountMetric::CalculateImpl(const function::Function &f) const {
+    auto &function_ast = f.ast;
+
     // Вспомогательная лямбда для извлечения номера строки из диапазона узла AST.
     // Формат узла в S-выражении: (node_type [start_line,start_column] [end_line,end_column] ...)
     // Эта функция ищет открывающую скобку "[" после заданной позиции и парсит первую координату — номер строки.
@@ -69,9 +137,6 @@ MetricResult::ValueType CodeLinesCountMetric::CalculateImpl(const function::Func
     if (start_line >= end_line) {
         return is_code_line(start_line) ? 1 : 0;
     }
-
-    // Создаем диапазон номеров строк от (start_line + 1) до end_line включительно.
-    // Фильтруем только кодовые строки и вычисляем их итоговое количество.
     auto code_lines_range = std::views::iota(start_line + 1, end_line + 1) |
                             std::views::filter([&](int line) { return is_code_line(line); });
 
@@ -79,3 +144,4 @@ MetricResult::ValueType CodeLinesCountMetric::CalculateImpl(const function::Func
 }
 
 }  // namespace analyzer::metric::metric_impl
+*/
