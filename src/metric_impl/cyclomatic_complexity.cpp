@@ -65,5 +65,22 @@ MetricResult::ValueType CyclomaticComplexityMetric::CalculateImpl(const function
     // в цикле (это допустимо, так как вы работаете со строковым представлением AST,
     // а не с исходным кодом напрямую).
 
+      // - В конце к общей сумме нужно прибавить 1 (базовая сложность функции без ветвлений).
+
+    MetricResult::ValueType complexity = 1; // Базовая сложность функции без ветвлений
+
+    // Проходим по каждому типу управляющего узла из списка
+    for (const auto node_type : complexity_nodes) {
+        size_t pos = function_ast.find(node_type, 0);
+        
+        // Считаем все вхождения текущего узла в строке AST
+        while (pos != std::string::npos) {
+            complexity++;
+            // Ищем следующее вхождение, сдвигаясь вперед на длину найденного узла
+            pos = function_ast.find(node_type, pos + node_type.length());
+        }
+    }
+
+    return complexity;
 }
 }  // namespace analyzer::metric::metric_impl

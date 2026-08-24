@@ -29,14 +29,14 @@ MetricResult::ValueType CodeLinesCountMetric::CalculateImpl(const function::Func
     auto line_number = [&](int start_pos) {
         size_t line_pos = function_ast.find("[", start_pos);
         size_t comma_pos = function_ast.find(",", line_pos);
-        return ToInt(function_ast.substr(line_pos + 1, comma_pos - line_pos - 1));
+        return std::stoi(function_ast.substr(line_pos + 1, comma_pos - line_pos - 1));
     };
     // Определяем начальную и конечную строки тела функции:
     // - начальная строка берётся из корневого узла функции (первое вхождение "[")
     // - конечная строка ищется по шаблону "] -"
     const int start_line = line_number(0);
     const int end_line = line_number(function_ast.find("] -"));
-    
+
     // Лямбда, проверяющая, является ли конкретная строка "кодовой", то есть не комментарием.
     auto is_code_line = [&](int line) {
         std::string line_marker = "[" + std::to_string(line) + ",";
@@ -62,7 +62,20 @@ MetricResult::ValueType CodeLinesCountMetric::CalculateImpl(const function::Func
     //
     // Почему start_line + 1?
     // Потому что первая строка — это строка с объявлением функции (def ...),
-    // а тело функции начинается со следующей строки (обычно с отступа).                                             std::views::filter([&](int line) { return is_code_line(line); })));
+    // а тело функции начинается со следующей строки (обычно с отступа). std::views::filter([&](int line) { return
+    // is_code_line(line); })));
+
+    // Защита на случай, если функция занимает всего 1 строку (inline-методы)
+    if (start_line >= end_line) {
+        return is_code_line(start_line) ? 1 : 0;
+    }
+
+    // Создаем диапазон номеров строк от (start_line + 1) до end_line включительно.
+    // Фильтруем только кодовые строки и вычисляем их итоговое количество.
+    auto code_lines_range = std::views::iota(start_line + 1, end_line + 1) |
+                            std::views::filter([&](int line) { return is_code_line(line); });
+
+    return std::ranges::distance(code_lines_range);
 }
 
 }  // namespace analyzer::metric::metric_impl
