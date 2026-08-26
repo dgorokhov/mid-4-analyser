@@ -1,52 +1,56 @@
+cmake_minimum_required(VERSION 3.30)
 
+# Прокидываем глобальную include-папку для всех внутренних библиотек
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../include)
 
-add_library(function
+# 1. Библиотека опций командной строки
+add_library(cmd_options STATIC
+    cmd_options.cpp
+)
+# Ликуем с Boost, чтобы cmd_options видела <boost/program_options.hpp>
+target_link_libraries(cmd_options PUBLIC Boost::program_options)
+
+# 2. Монолитная библиотека ядра анализатора и его метрик
+add_library(analyzer_core STATIC
+    analyzer.cpp
     function.cpp
 )
 
-add_library(file
-    file.cpp
-)
-
-add_library(metric
-    metric.cpp
-    metric_impl/code_lines_count.cpp
-    metric_impl/cyclomatic_complexity.cpp
-    metric_impl/parameters_count.cpp
-)
-
-target_link_libraries(metric
-    PUBLIC
-        function
-)
-
-add_library(metric_accumulator
+# 3. Монолитная библиотека аккумуляторов
+add_library(metric_accumulator STATIC
     metric_accumulator.cpp
-    metric_accumulator_impl/average_accumulator.cpp
-    metric_accumulator_impl/sum_average_accumulator.cpp
 )
 
-target_link_libraries(metric_accumulator
-    PUBLIC
-        function
-        file
+# Линкуем аккумуляторы с ядром
+target_link_libraries(metric_accumulator PUBLIC analyzer_core)
+
+# ==========================================
+# ЕДИНЫЙ ТАРГЕТ ТЕСТОВ
+# ==========================================
+set(target metric_test)
+
+add_executable(${target}
+    tests.cpp
 )
 
-add_library(cmd_options
-    cmd_options.cpp
-)
-
-target_link_libraries(cmd_options
+target_link_libraries(${target}
     PRIVATE
-        ${Boost_LIBRARIES}
-)
-target_include_directories(cmd_options
-    PUBLIC
-        ${Boost_INCLUDE_DIRS}
-        ${CMAKE_CURRENT_SOURCE_DIR}/include
+        GTest::GTest
+        GTest::Main
+        analyzer_core
+        metric_accumulator
 )
 
+# Копирование тестовых файлов Python в бинарную директорию сборки
+file(GLOB test_files "${CMAKE_CURRENT_SOURCE_DIR}/metric_impl/tests/files/*.py")
+if(NOT test_files)
+    file(GLOB test_files "${CMAKE_CURRENT_SOURCE_DIR}/tests/files/*.py")
+endif()
 
-# Настраиваем библиотеки metric_accumulator_impl и metric_impl
-add_subdirectory(metric_accumulator_impl)
-add_subdirectory(metric_impl)
+foreach(file IN LISTS test_files)
+    get_filename_component(file_name ${file} NAME)
+    configure_file(${file} "${CMAKE_CURRENT_BINARY_DIR}/src/metric_impl/tests/files/${file_name}" COPYONLY)
+    configure_file(${file} "${CMAKE_CURRENT_BINARY_DIR}/tests/files/${file_name}" COPYONLY)
+endforeach()
+
+add_test(NAME ${target} COMMAND ${target})

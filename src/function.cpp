@@ -1,5 +1,3 @@
-#include "function.hpp"
-
 #include <unistd.h>
 
 #include <algorithm>
@@ -17,8 +15,9 @@
 #include <variant>
 #include <vector>
 
-#include "file.hpp"
 #include "utils.hpp"
+
+#include "analyzer.hpp" 
 
 namespace fs = std::filesystem;
 namespace rv = std::ranges::views;

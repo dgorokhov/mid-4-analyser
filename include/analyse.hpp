@@ -17,10 +17,7 @@
 #include <variant>
 #include <vector>
 
-#include "file.hpp"
-#include "function.hpp"
-#include "metric.hpp"
-#include "metric_accumulator.hpp"
+//#include "metric_accumulator.hpp"
 
 namespace analyzer {
 

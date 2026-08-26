@@ -17,14 +17,11 @@
 #include <variant>
 #include <vector>
 
+#include "analyzer.hpp"
 #include "analyse.hpp"
 #include "cmd_options.hpp"
-#include "file.hpp"
-#include "function.hpp"
-#include "metric.hpp"
 #include "metric_accumulator.hpp"
-#include "metric_accumulator_impl/accumulators.hpp"
-#include "metric_impl/metrics.hpp"
+
 
 int main(int argc, char *argv[]) {
     
