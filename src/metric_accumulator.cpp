@@ -1,11 +1,10 @@
 #include "metric_accumulator.hpp"
-#include "analyzer.hpp" // 💡 В .cpp файле инклуд абсолютно безопасен!
+#include "analyzer.hpp" 
 
 namespace analyzer::metric_accumulator {
 
-// ==========================================
+
 // MetricsAccumulator (std::ranges)
-// ==========================================
 
 void MetricsAccumulator::AccumulateNextFunctionResults(const std::vector<::analyzer::metric::MetricResult> &metric_results) const {
     std::ranges::for_each(metric_results, [this](const auto &metric_result) {
@@ -26,9 +25,8 @@ void MetricsAccumulator::ResetAccumulators() {
     });
 }
 
-// ==========================================
+
 // Реализация Accumulator'ов
-// ==========================================
 namespace metric_accumulator_impl {
 
 
@@ -81,9 +79,7 @@ SumAverage SumAverageAccumulator::Get() const {
     return {sum, average};
 }
 
-// ==========================================
 // Реализация методов CategoricalAccumulator
-// ==========================================
 
 void CategoricalAccumulator::Accumulate(const ::analyzer::metric::MetricResult &metric_result) {
     category_counts[metric_result.value]++;

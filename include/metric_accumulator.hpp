@@ -7,7 +7,6 @@
 #include <algorithm>
 #include <ranges>
 
-// 💡 Опережающее объявление: строго говорим компилятору, что такой тип существует
 namespace analyzer::metric {
     struct MetricResult; 
 }
@@ -28,9 +27,8 @@ protected:
     bool is_finalized = false;
 };
 
-// ==========================================
-// 2. РЕАЛИЗАЦИИ АККУМУЛЯТОРОВ
-// ==========================================
+
+// РЕАЛИЗАЦИИ АККУМУЛЯТОРОВ
 namespace metric_accumulator_impl {
 
 struct AverageAccumulator : public IAccumulator {
@@ -79,9 +77,9 @@ private:
 
 } // namespace metric_accumulator_impl
 
-// ==========================================
-// 3. ОСНОВНОЙ ДИСПЕТЧЕР АККУМУЛЯТОРОВ
-// ==========================================
+
+// ДИСПЕТЧЕР АККУМУЛЯТОРОВ
+
 struct MetricsAccumulator {
     template <typename Accumulator>
     void RegisterAccumulator(const std::string &metric_name, std::unique_ptr<Accumulator> acc) {

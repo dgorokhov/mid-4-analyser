@@ -1,21 +1,6 @@
 #include <unistd.h>
-
 #include <algorithm>
-#include <array>
-#include <cstdio>
-#include <cstdlib>
-#include <cstring>
-#include <filesystem>
-#include <fstream>
-#include <functional>
-#include <iomanip>
-#include <iostream>
 #include <print>
-#include <ranges>
-#include <sstream>
-#include <string>
-#include <variant>
-#include <vector>
 
 #include "analyzer.hpp"
 #include "analyse.hpp"
@@ -39,17 +24,7 @@ int main(int argc, char *argv[]) {
     auto analysis = analyzer::AnalyseFunctions(options.GetFiles(), metric_extractor);
 
     std::println("Analysis for every function:");
-    /*
-         std::ranges::for_each(analysis, [&](const auto &elem) {
-            const auto &[function, metrics] = elem;
-            std::println("  {}::{}{}: ", function.filename,
-                         (function.class_name.has_value() ? function.class_name.value() + "::" : ""), function.name);
-            std::ranges::for_each(metrics, [&](const auto &result) {
-                std::print("    {}: ", result.metric_name);
-                std::visit([](auto &&val) { std::println("{}", val); }, result.value);
-            });
-        });
-    */
+
     std::ranges::for_each(analysis, [&](const auto &elem) {
         const auto &[function, metrics] = elem;
         std::println("  {}::{}{}: ", function.filename,
@@ -73,12 +48,6 @@ int main(int argc, char *argv[]) {
         std::println("    Sum Cyclomatic Complexity: {}", cc_acc_metric.Get().sum);
         std::println("    Average Cyclomatic Complexity per function: {}", cc_acc_metric.Get().average);
 
-        /*auto &naming_acc_metric =
-            accumulator.template GetFinalizedAccumulator<CategoricalAccumulator>(NamingStyleMetric::kName);
-        std::ranges::for_each(naming_acc_metric.Get(), [](const auto &elem) {
-            std::println("    Naming style '{}' is occured {} times", elem.first, elem.second);
-        });
-        */
         auto &cl_acc_metric =
             accumulator.template GetFinalizedAccumulator<SumAverageAccumulator>(CodeLinesCountMetric::kName);
         std::println("    Sum Code lines count: {}", cl_acc_metric.Get().sum);
@@ -90,15 +59,6 @@ int main(int argc, char *argv[]) {
 
     auto analysis_by_files = analyzer::SplitByFiles(analysis);
 
-    /*
-        std::ranges::for_each(analysis_by_files, [&accumulator, &print_accumulated_analysis](const auto &analysis) {
-        analyzer::AccumulateFunctionAnalysis(analysis, accumulator);
-        std::println();
-        std::println("Accumulated Analysis for file {}:", analysis.front().first.filename);
-        print_accumulated_analysis(accumulator);
-        accumulator.ResetAccumulators();
-    });
-*/
     std::ranges::for_each(analysis_by_files, [&accumulator, &print_accumulated_analysis](const auto &item) {
         // Распаковываем пару из map: key (имя файла) и value (вектор данных)
         const auto &[filename, analysis_vector] = item;
@@ -113,17 +73,8 @@ int main(int argc, char *argv[]) {
 
     auto analysis_by_classes = analyzer::SplitByClasses(analysis);
 
-    /*
-    std::ranges::for_each(analysis_by_classes, [&accumulator, &print_accumulated_analysis](const auto &analysis) {
-        analyzer::AccumulateFunctionAnalysis(analysis, accumulator);
-        std::println();
-        std::println("Accumulated Analysis for сlass {}:", analysis.front().first.class_name.value());
-        print_accumulated_analysis(accumulator);
-        accumulator.ResetAccumulators();
-    });
-*/
     std::ranges::for_each(analysis_by_classes, [&accumulator, &print_accumulated_analysis](const auto &item) {
-        // 💡 Распаковываем пару: ключ (имя класса) и значение (вектор данных)
+        //  Распаковываем пару: ключ (имя класса) и значение (вектор данных)
         const auto &[class_name, analysis_vector] = item;
         analyzer::AccumulateFunctionAnalysis(analysis_vector, accumulator);
         std::println();

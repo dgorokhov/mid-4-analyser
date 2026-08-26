@@ -3,20 +3,20 @@ cmake_minimum_required(VERSION 3.30)
 # Прокидываем глобальную include-папку для всех внутренних библиотек
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../include)
 
-# 1. Библиотека опций командной строки
+# иблиотека опций командной строки
 add_library(cmd_options STATIC
     cmd_options.cpp
 )
 # Ликуем с Boost, чтобы cmd_options видела <boost/program_options.hpp>
 target_link_libraries(cmd_options PUBLIC Boost::program_options)
 
-# 2. Монолитная библиотека ядра анализатора и его метрик
+# библиотека ядра анализатора и его метрик
 add_library(analyzer_core STATIC
     analyzer.cpp
     function.cpp
 )
 
-# 3. Монолитная библиотека аккумуляторов
+# библиотека аккумуляторов
 add_library(metric_accumulator STATIC
     metric_accumulator.cpp
 )
@@ -24,9 +24,8 @@ add_library(metric_accumulator STATIC
 # Линкуем аккумуляторы с ядром
 target_link_libraries(metric_accumulator PUBLIC analyzer_core)
 
-# ==========================================
+
 # ЕДИНЫЙ ТАРГЕТ ТЕСТОВ
-# ==========================================
 set(target metric_test)
 
 add_executable(${target}
