@@ -27,31 +27,32 @@
 #include "metric_impl/metrics.hpp"
 
 int main(int argc, char *argv[]) {
+    
     analyzer::cmd::ProgramOptions options;
     if (!options.Parse(argc, argv))
         return 1;
+    
+    
     using namespace analyzer::metric::metric_impl;
     analyzer::metric::MetricExtractor metric_extractor;
     metric_extractor.RegisterMetric(std::make_unique<CyclomaticComplexityMetric>());
     metric_extractor.RegisterMetric(std::make_unique<CodeLinesCountMetric>());
-    //metric_extractor.RegisterMetric(std::make_unique<NamingStyleMetric>());
     metric_extractor.RegisterMetric(std::make_unique<CountParametersMetric>());
 
     auto analysis = analyzer::AnalyseFunctions(options.GetFiles(), metric_extractor);
 
     std::println("Analysis for every function:");
-
-    /* std::ranges::for_each(analysis, [&](const auto &elem) {
-        const auto &[function, metrics] = elem;
-        std::println("  {}::{}{}: ", function.filename,
-                     (function.class_name.has_value() ? function.class_name.value() + "::" : ""), function.name);
-        std::ranges::for_each(metrics, [&](const auto &result) {
-            std::print("    {}: ", result.metric_name);
-            std::visit([](auto &&val) { std::println("{}", val); }, result.value);
+    /*
+         std::ranges::for_each(analysis, [&](const auto &elem) {
+            const auto &[function, metrics] = elem;
+            std::println("  {}::{}{}: ", function.filename,
+                         (function.class_name.has_value() ? function.class_name.value() + "::" : ""), function.name);
+            std::ranges::for_each(metrics, [&](const auto &result) {
+                std::print("    {}: ", result.metric_name);
+                std::visit([](auto &&val) { std::println("{}", val); }, result.value);
+            });
         });
-    });
-*/
-
+    */
     std::ranges::for_each(analysis, [&](const auto &elem) {
         const auto &[function, metrics] = elem;
         std::println("  {}::{}{}: ", function.filename,
@@ -65,16 +66,16 @@ int main(int argc, char *argv[]) {
     analyzer::metric_accumulator::MetricsAccumulator accumulator;
     using namespace analyzer::metric_accumulator::metric_accumulator_impl;
     accumulator.RegisterAccumulator(CyclomaticComplexityMetric::kName, std::make_unique<SumAverageAccumulator>());
-    //accumulator.RegisterAccumulator(NamingStyleMetric::kName, std::make_unique<CategoricalAccumulator>());
     accumulator.RegisterAccumulator(CodeLinesCountMetric::kName, std::make_unique<SumAverageAccumulator>());
     accumulator.RegisterAccumulator(CountParametersMetric::kName, std::make_unique<AverageAccumulator>());
 
+    
     auto print_accumulated_analysis = [](const auto &accumulator) {
         auto &cc_acc_metric =
             accumulator.template GetFinalizedAccumulator<SumAverageAccumulator>(CyclomaticComplexityMetric::kName);
         std::println("    Sum Cyclomatic Complexity: {}", cc_acc_metric.Get().sum);
         std::println("    Average Cyclomatic Complexity per function: {}", cc_acc_metric.Get().average);
-        
+
         /*auto &naming_acc_metric =
             accumulator.template GetFinalizedAccumulator<CategoricalAccumulator>(NamingStyleMetric::kName);
         std::ranges::for_each(naming_acc_metric.Get(), [](const auto &elem) {
@@ -93,7 +94,7 @@ int main(int argc, char *argv[]) {
     auto analysis_by_files = analyzer::SplitByFiles(analysis);
 
     /*
-    std::ranges::for_each(analysis_by_files, [&accumulator, &print_accumulated_analysis](const auto &analysis) {
+        std::ranges::for_each(analysis_by_files, [&accumulator, &print_accumulated_analysis](const auto &analysis) {
         analyzer::AccumulateFunctionAnalysis(analysis, accumulator);
         std::println();
         std::println("Accumulated Analysis for file {}:", analysis.front().first.filename);
@@ -104,14 +105,11 @@ int main(int argc, char *argv[]) {
     std::ranges::for_each(analysis_by_files, [&accumulator, &print_accumulated_analysis](const auto &item) {
         // Распаковываем пару из map: key (имя файла) и value (вектор данных)
         const auto &[filename, analysis_vector] = item;
-
-        // 💡 Передаем в аккумуляцию ИМЕННО ВЕКТОР, а не всю пару целиком
+        // Передаем ВЕКТОР, а не всю пару целиком
         analyzer::AccumulateFunctionAnalysis(analysis_vector, accumulator);
-
         std::println();
-        // 💡 Вместо сложного фронта просто пишем распакованное имя файла!
+        // Вместо сложного фронта просто пишем распакованное имя файла!
         std::println("Accumulated Analysis for file {}:", filename);
-
         print_accumulated_analysis(accumulator);
         accumulator.ResetAccumulators();
     });

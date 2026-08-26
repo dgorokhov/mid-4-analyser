@@ -67,10 +67,9 @@ inline auto AnalyseFunctions(const std::vector<std::string> &files,
     analysis_results.reserve(all_functions.size());
 
     for (auto &func : all_functions) {
-        // Считаем набор метрик для конкретной функции
+        // Считам набоор метрик для ф-ии
         analyzer::metric::MetricResults metrics = metric_extractor.Get(func);
-
-        // Сохраняем пару [Функция, Результаты метрик]
+        // Сохраняем пару [Функция, метрики]
         analysis_results.emplace_back(std::move(func), std::move(metrics));
     }
 
@@ -135,25 +134,7 @@ inline auto SplitByFiles(const auto &analysis) {
  *   (то есть по каждой функции и её метрикам).
  * - Передаёт результаты метрик (`elem.second`) в аккумулятор через `AccumulateNextFunctionResults`.
  */
-/*void AccumulateFunctionAnalysis(const auto &analysis,
-                                const analyzer::metric_accumulator::MetricsAccumulator &accumulator) {
-    // здесь ваш код
-}
-*/
-/*
-inline void AccumulateFunctionAnalysis(const auto &analysis, auto &metrics_accumulator) {
-    for (const auto &item : analysis) {
-        const auto &metrics_results = item.second;  // Это вектор MetricResult для данной функции
 
-        for (const auto &metric_result : metrics_results) {
-            // Передаем результат вычисления метрики в аккумулятор для агрегации
-            metrics_accumulator.RegisterAccumulator(metric_result);
-            // Примечание: если в твоем шаблоне метод называется иначе (например, Accumulate или Process),
-            // просто поменяй имя метода Update на нужное.
-        }
-    }
-}
-*/
 
 template <typename T, typename U>
 inline void AccumulateFunctionAnalysis(const T &analysis_container, U &metrics_accumulator) {

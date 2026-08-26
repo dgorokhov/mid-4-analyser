@@ -35,10 +35,12 @@ protected:
 };
 
 struct MetricsAccumulator {
+    
     template <typename Accumulator>
     void RegisterAccumulator(const std::string &metric_name, std::unique_ptr<Accumulator> acc) {
         accumulators.emplace(metric_name, std::move(acc));
     }
+    
     template <typename Accumulator>
     const Accumulator &GetFinalizedAccumulator(const std::string &metric_name) const {
         auto metric_accululator = accumulators.at(metric_name);
