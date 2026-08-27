@@ -1,5 +1,11 @@
+#include <array>
+#include <string_view>
+#include <ranges>
+#include <numeric>
+
 #include "analyzer.hpp"
 #include <sys/wait.h>
+
 
 namespace analyzer::file {
 
@@ -132,7 +138,7 @@ MetricResult::ValueType CodeLinesCountMetric::CalculateImpl(const function::Func
 
     return std::ranges::distance(code_lines_range);
 }
-
+/*
 MetricResult::ValueType CyclomaticComplexityMetric::CalculateImpl(const function::Function &f) const {
     auto &function_ast = f.ast;
     constexpr std::array<std::string_view, 9> complexity_nodes = {
@@ -150,6 +156,30 @@ MetricResult::ValueType CyclomaticComplexityMetric::CalculateImpl(const function
     }
     return complexity;
 }
+*/
+
+MetricResult::ValueType CyclomaticComplexityMetric::CalculateImpl(const function::Function &f) const {
+    const auto &function_ast = f.ast;
+    
+    constexpr std::array<std::string_view, 9> complexity_nodes = {
+        "if_statement", "elif_statement", "for_statement", "while_statement",
+        "try_statement", "finally_clause", "case_clause", "assert", "conditional_expression"
+    };
+
+    auto counts_view = complexity_nodes | std::views::transform([&function_ast](std::string_view node_type) {
+        MetricResult::ValueType count = 0;
+        size_t pos = function_ast.find(node_type, 0);
+        while (pos != std::string::npos) {
+            count++;
+            pos = function_ast.find(node_type, pos + node_type.length());
+        }
+        return count;
+    });
+
+    // В C++20 используем accumulate для подсчета суммы из view
+    return std::accumulate(counts_view.begin(), counts_view.end(), MetricResult::ValueType{1});
+}
+
 
 MetricResult::ValueType CountParametersMetric::CalculateImpl(const function::Function &f) const {
     auto &function_ast = f.ast;

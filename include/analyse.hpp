@@ -95,8 +95,7 @@ inline auto AnalyseFunctions(const std::vector<std::string> &files,
             return std::make_pair(std::move(func), std::move(metrics));
         });
 
-    std::vector<std::pair<anal
-    yzer::function::Function, analyzer::metric::MetricResults>> analysis_results;
+    std::vector<std::pair<analyzer::function::Function, analyzer::metric::MetricResults>> analysis_results;
     std::ranges::move(pipeline, std::back_inserter(analysis_results));
 
     return analysis_results;
