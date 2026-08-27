@@ -36,6 +36,7 @@ namespace rs = std::ranges;
  * 6. Возвращает вектор пар: (функция, результаты её метрик).
  */
 
+/*
 inline auto AnalyseFunctions(const std::vector<std::string> &files,
                              const analyzer::metric::MetricExtractor &metric_extractor) {
     // 1. Создаем общий список для функций и экстрактор
@@ -72,6 +73,35 @@ inline auto AnalyseFunctions(const std::vector<std::string> &files,
 
     return analysis_results;
 }
+*/
+
+inline auto AnalyseFunctions(const std::vector<std::string> &files,
+                             const analyzer::metric::MetricExtractor &metric_extractor) {
+    analyzer::function::FunctionExtractor func_extractor;
+
+    auto pipeline = files 
+        | std::views::transform([&](const std::string &filename) {
+            try {
+                analyzer::file::File source_file(filename);
+                return func_extractor.Get(source_file);
+            } catch (const std::exception &e) {
+                std::cerr << "Warning: Skipping file " << filename << " due to error: " << e.what() << std::endl;
+                return std::vector<analyzer::function::Function>{};
+            }
+        })
+        | std::views::join
+        | std::views::transform([&](analyzer::function::Function& func) {
+            auto metrics = metric_extractor.Get(func);
+            return std::make_pair(std::move(func), std::move(metrics));
+        });
+
+    std::vector<std::pair<anal
+    yzer::function::Function, analyzer::metric::MetricResults>> analysis_results;
+    std::ranges::move(pipeline, std::back_inserter(analysis_results));
+
+    return analysis_results;
+}
+
 
 /**
  *
