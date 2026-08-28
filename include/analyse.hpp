@@ -120,6 +120,7 @@ inline auto AnalyseFunctions(const std::vector<std::string> &files,
  *  Чтобы убедиться, что фильтрация работает, проверьте, что свободные функции (без class_name)
  * действительно исчезают из результата.
  */
+ /*
 inline auto SplitByClasses(const auto &analysis) {
     // Ключ — имя класса, значение — список пар (функция, её метрики)
     std::unordered_map<std::string, std::vector<std::decay_t<decltype(analysis[0])>>> class_groups;
@@ -133,6 +134,28 @@ inline auto SplitByClasses(const auto &analysis) {
     }
     return class_groups;
 }
+*/
+
+inline auto SplitByClasses(const auto &analysis) {
+    // Получаем точный тип элемента внутри входящего контейнера
+    using ItemType = std::ranges::range_value_t<decltype(analysis)>;
+    using MapType = std::unordered_map<std::string, std::vector<ItemType>>;
+
+    auto filtered_view = analysis | std::views::filter([](const auto &item) {
+        return item.first.class_name.has_value();
+    });
+    return std::ranges::fold_left(
+        filtered_view, 
+        MapType{}, // Начальное значение аккумулятора
+        [](MapType acc, const auto &item) {
+            acc[item.first.class_name.value()].push_back(item);
+            return acc;
+        }
+    );
+}
+
+
+
 /**
  * @brief Группирует результаты анализа по исходным файлам.
  *
