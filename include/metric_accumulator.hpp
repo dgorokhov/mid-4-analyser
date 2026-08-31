@@ -1,31 +1,24 @@
 #pragma once
-#include <unistd.h>
 
-#include <algorithm>
-#include <any>
-#include <array>
-#include <cstdio>
-#include <cstdlib>
-#include <cstring>
-#include <filesystem>
-#include <fstream>
-#include <functional>
-#include <iostream>
-#include <ranges>
-#include <sstream>
+#include <memory>
 #include <string>
-#include <variant>
 #include <vector>
+#include <unordered_map>
+#include <algorithm>
+#include <ranges>
 
-#include "metric.hpp"
-
-namespace rv = std::ranges::views;
-namespace rs = std::ranges;
+namespace analyzer::metric {
+    struct MetricResult; 
+}
 
 namespace analyzer::metric_accumulator {
 
+// ==========================================
+// 1. БАЗОВЫЙ ИНТЕРФЕЙС
+// ==========================================
 struct IAccumulator {
-    virtual void Accumulate(const metric::MetricResult &metric_result) = 0;
+    // Используем полный путь к типу
+    virtual void Accumulate(const ::analyzer::metric::MetricResult &metric_result) = 0;
     virtual void Finalize() = 0;
     virtual void Reset() = 0;
     virtual ~IAccumulator() = default;
@@ -34,19 +27,74 @@ protected:
     bool is_finalized = false;
 };
 
+
+// РЕАЛИЗАЦИИ АККУМУЛЯТОРОВ
+namespace metric_accumulator_impl {
+
+struct AverageAccumulator : public IAccumulator {
+    void Accumulate(const metric::MetricResult &metric_result) override;
+    void Finalize() override;
+    void Reset();
+    double Get() const;
+
+private:
+    int sum = 0;
+    int count = 0;
+    double average = 0;
+};
+
+
+struct SumAverage {
+        int sum;
+        double average;
+        auto operator<=>(const SumAverage &) const = default;
+    };
+    
+struct SumAverageAccumulator : public IAccumulator {
+    
+    void Accumulate(const metric::MetricResult &metric_result) override;
+    virtual void Finalize() override;
+    virtual void Reset() override;
+    SumAverage Get() const;
+
+private:
+    int sum = 0;
+    int count = 0;
+    double average = 0;
+};
+
+class CategoricalAccumulator : public IAccumulator {
+public:
+    void Accumulate(const ::analyzer::metric::MetricResult &metric_result) override;
+    void Finalize() override;
+    void Reset() override;
+    std::string Get() const;
+
+private:
+    std::unordered_map<int, int> category_counts;
+    std::string dominant_category = "none";
+};
+
+} // namespace metric_accumulator_impl
+
+
+// ДИСПЕТЧЕР АККУМУЛЯТОРОВ
+
 struct MetricsAccumulator {
     template <typename Accumulator>
     void RegisterAccumulator(const std::string &metric_name, std::unique_ptr<Accumulator> acc) {
         accumulators.emplace(metric_name, std::move(acc));
     }
+
     template <typename Accumulator>
     const Accumulator &GetFinalizedAccumulator(const std::string &metric_name) const {
-        auto metric_accululator = accumulators.at(metric_name);
-        metric_accululator->Finalize();
-        return dynamic_cast<const Accumulator&>(*metric_accululator);
+        auto metric_accumulator = accumulators.at(metric_name);
+        metric_accumulator->Finalize();
+        return dynamic_cast<const Accumulator&>(*metric_accumulator);
     }
-    void AccumulateNextFunctionResults(const std::vector<metric::MetricResult> &metric_results) const;
 
+    // Передаем вектор с полным именем типа
+    void AccumulateNextFunctionResults(const std::vector<::analyzer::metric::MetricResult> &metric_results) const;
     void ResetAccumulators();
 
 private:

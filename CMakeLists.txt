@@ -21,10 +21,9 @@ add_executable(${target} main.cpp)
 
 target_link_libraries(${target} 
     PRIVATE
-        metric_accumulator
-        metric
         cmd_options
-        #range-v3::range-v3
+        analyzer_core
+        metric_accumulator
 )
 
 # BUILD_INTERFACE автоматически подключает include-пути всех библиотек, указанных в target_link_libraries для analyzer

@@ -17,10 +17,7 @@
 #include <variant>
 #include <vector>
 
-#include "file.hpp"
-#include "function.hpp"
-#include "metric.hpp"
-#include "metric_accumulator.hpp"
+//#include "metric_accumulator.hpp"
 
 namespace analyzer {
 
@@ -38,13 +35,75 @@ namespace rs = std::ranges;
  * 5. Для каждой функции вычисляет набор метрик через переданный `metric_extractor`.
  * 6. Возвращает вектор пар: (функция, результаты её метрик).
  */
-auto AnalyseFunctions(const std::vector<std::string> &files,
-                      const analyzer::metric::MetricExtractor &metric_extractor) {
-    // здесь ваш код
+
+/*
+inline auto AnalyseFunctions(const std::vector<std::string> &files,
+                             const analyzer::metric::MetricExtractor &metric_extractor) {
+    // 1. Создаем общий список для функций и экстрактор
+    std::vector<analyzer::function::Function> all_functions;
+    analyzer::function::FunctionExtractor func_extractor;
+
+    for (const auto &filename : files) {
+        try {
+            // Создаем структуру File (запускает парсинг tree-sitter внутри)
+            analyzer::file::File source_file(filename);
+
+            // Выделяем функции из этого файла
+            std::vector<analyzer::function::Function> file_functions = func_extractor.Get(source_file);
+
+            // Быстро перемещаем их в общий пул без лишнего копирования строк
+            all_functions.insert(all_functions.end(), std::make_move_iterator(file_functions.begin()),
+                                 std::make_move_iterator(file_functions.end()));
+        } catch (const std::exception &e) {
+            // Пропускаем проблемный файл, выводя предупреждение
+            std::cerr << "Warning: Skipping file " << filename << " due to error: " << e.what() << std::endl;
+        }
+    }
+
+    // 2. Описываем итоговый контейнер. Компилятор выведет его тип для возврата.
+    std::vector<std::pair<analyzer::function::Function, analyzer::metric::MetricResults>> analysis_results;
+    analysis_results.reserve(all_functions.size());
+
+    for (auto &func : all_functions) {
+        // Считам набоор метрик для ф-ии
+        analyzer::metric::MetricResults metrics = metric_extractor.Get(func);
+        // Сохраняем пару [Функция, метрики]
+        analysis_results.emplace_back(std::move(func), std::move(metrics));
+    }
+
+    return analysis_results;
+}
+*/
+
+inline auto AnalyseFunctions(const std::vector<std::string> &files,
+                             const analyzer::metric::MetricExtractor &metric_extractor) {
+    analyzer::function::FunctionExtractor func_extractor;
+
+    auto pipeline = files 
+        | std::views::transform([&](const std::string &filename) {
+            try {
+                analyzer::file::File source_file(filename);
+                return func_extractor.Get(source_file);
+            } catch (const std::exception &e) {
+                std::cerr << "Warning: Skipping file " << filename << " due to error: " << e.what() << std::endl;
+                return std::vector<analyzer::function::Function>{};
+            }
+        })
+        | std::views::join
+        | std::views::transform([&](analyzer::function::Function& func) {
+            auto metrics = metric_extractor.Get(func);
+            return std::make_pair(std::move(func), std::move(metrics));
+        });
+
+    std::vector<std::pair<analyzer::function::Function, analyzer::metric::MetricResults>> analysis_results;
+    std::ranges::move(pipeline, std::back_inserter(analysis_results));
+
+    return analysis_results;
 }
 
+
 /**
- * 
+ *
  * @brief Группирует результаты анализа по классам.
  *
  * Эта функция:
@@ -61,9 +120,41 @@ auto AnalyseFunctions(const std::vector<std::string> &files,
  *  Чтобы убедиться, что фильтрация работает, проверьте, что свободные функции (без class_name)
  * действительно исчезают из результата.
  */
-auto SplitByClasses(const auto &analysis) {
-    // здесь ваш код
+ /*
+inline auto SplitByClasses(const auto &analysis) {
+    // Ключ — имя класса, значение — список пар (функция, её метрики)
+    std::unordered_map<std::string, std::vector<std::decay_t<decltype(analysis[0])>>> class_groups;
+
+    for (const auto &item : analysis) {
+        // item.first — это Function. Проверяем, принадлежит ли она классу
+        if (item.first.class_name.has_value()) {
+            std::string class_name = item.first.class_name.value();
+            class_groups[class_name].push_back(item);
+        }
+    }
+    return class_groups;
 }
+*/
+
+inline auto SplitByClasses(const auto &analysis) {
+    // Получаем точный тип элемента внутри входящего контейнера
+    using ItemType = std::ranges::range_value_t<decltype(analysis)>;
+    using MapType = std::unordered_map<std::string, std::vector<ItemType>>;
+
+    auto filtered_view = analysis | std::views::filter([](const auto &item) {
+        return item.first.class_name.has_value();
+    });
+    return std::ranges::fold_left(
+        filtered_view, 
+        MapType{}, // Начальное значение аккумулятора
+        [](MapType acc, const auto &item) {
+            acc[item.first.class_name.value()].push_back(item);
+            return acc;
+        }
+    );
+}
+
+
 
 /**
  * @brief Группирует результаты анализа по исходным файлам.
@@ -73,8 +164,15 @@ auto SplitByClasses(const auto &analysis) {
  *   только функции из одного и того же файла (`filename`).
  * - Использует `chunk_by`, поэтому **порядок функций в `analysis` должен быть по файлам**.
  */
-auto SplitByFiles(const auto &analysis) {
-    // здесь ваш код
+inline auto SplitByFiles(const auto &analysis) {
+    // Ключ — имя файла, значение — список пар (функция, её метрики)
+    std::unordered_map<std::string, std::vector<std::decay_t<decltype(analysis[0])>>> file_groups;
+
+    for (const auto &item : analysis) {
+        std::string filename = item.first.filename;
+        file_groups[filename].push_back(item);
+    }
+    return file_groups;
 }
 
 /**
@@ -85,9 +183,16 @@ auto SplitByFiles(const auto &analysis) {
  *   (то есть по каждой функции и её метрикам).
  * - Передаёт результаты метрик (`elem.second`) в аккумулятор через `AccumulateNextFunctionResults`.
  */
-void AccumulateFunctionAnalysis(const auto &analysis,
-                                const analyzer::metric_accumulator::MetricsAccumulator &accumulator) {
-    // здесь ваш код
-}
 
+
+template <typename T, typename U>
+inline void AccumulateFunctionAnalysis(const T &analysis_container, U &metrics_accumulator) {
+    for (const auto &item : analysis_container) {
+        // item.second — это и есть std::vector<metric::MetricResult> для конкретной функции
+        const auto &metrics_results = item.second;
+
+        // Передаем весь вектор результатов функции в метод аккумулятора
+        metrics_accumulator.AccumulateNextFunctionResults(metrics_results);
+    }
+}
 }  // namespace analyzer
